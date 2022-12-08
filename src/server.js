@@ -1,6 +1,13 @@
+require('dotenv').config()
+const bodyParser = require('body-parser')
 const express = require('express')
 const AWS = require('aws-sdk')
-require('dotenv').config()
+const app = express()
+
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+const PORT = process.env.PORT || 3333
 
 AWS.config.update({
     region: process.env.AWS_DEFAULT_REGION,
@@ -8,56 +15,65 @@ AWS.config.update({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
 })
 
+
 const dynamoClient = new AWS.DynamoDB.DocumentClient();
 
 const TABLE_NAME = "user"
 
-//Ready
-const getCharacters= async() =>{
+
+app.get('/user', async (req,res) => {
     const params = {
         TableName: TABLE_NAME
     };
 
     const characteres = await dynamoClient.scan(params).promise()
-    console.log(characteres)
-    return characteres
-}
+    // console.log(characteres.Items)
+    return res.json(characteres.Items)
+})
 
-//Create
-const addOrUpdateCharacter = async (characterer) => {
+
+app.post('/user', async (req,res) => {
+    const characterer = {
+        email: req.body.email,
+        nome: req.body.nome
+    }
     const params ={
         TableName: TABLE_NAME,
         Item: characterer
     }
 
-    return await dynamoClient.put(params).promise()
-}
+    const newUser =  await dynamoClient.put(params).promise()
 
-const getCharacterById = async (email) => {
+    return res.json({message:"Usuário criado/atualizado com sucesso"})
+})
+
+app.delete('/user/:email', async (req,res) => {
+    const email = req.params.email
     const params = {
         TableName: TABLE_NAME,
         Key: {
             email
         }
     }
-    const characterer = await dynamoClient.get(params).promise()
-    console.log(characterer) 
-    return characterer
-}
+
+    const status = await dynamoClient.delete(params).promise()
+
+    return res.json({message:"Usuario deletado com sucesso"})
+})
 
 
-const deleteCharacter = async (email) => {
-    const params = {
-        TableName: TABLE_NAME,
-        Key: {
-            email
-        }
-    }
-    
-    return await dynamoClient.delete(params).promise()
-}
+// const getCharacterById = async (email) => {
+//     const params = {
+//         TableName: TABLE_NAME,
+//         Key: {
+//             email
+//         }
+//     }
+//     const characterer = await dynamoClient.get(params).promise()
+//     console.log(characterer) 
+//     return characterer
+// }
 
-
-getCharacters()
-const newUser = {email: 'teste@email.com', nome: 'Zeca da silva'} 
-// addOrUpdateCharacter(newUser)
+app.listen(PORT, () => {
+    console.log(`Server is running`)
+})
